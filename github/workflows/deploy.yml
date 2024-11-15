@@ -3,7 +3,7 @@ name: Deploy to DockerHub and Remote Server
 on:
   push:
     branches:
-      - main  # Roda o workflow quando o código é enviado para a branch "main".
+      - main  # Executa o workflow quando o código é enviado para a branch "main".
 
 jobs:
   deploy:
@@ -21,19 +21,22 @@ jobs:
 
       - name: Build e Push Imagem para DockerHub
         run: |
-          docker build -t seu_usuario_dockerhub/nome_imagem:latest .
-          docker push seu_usuario_dockerhub/nome_imagem:latest
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/nome_imagem:latest .
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/nome_imagem:latest
+
+      - name: Configurar chave SSH para conexão com o servidor remoto
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
       - name: Deploy no Servidor
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no aluno@201.23.3.86 << 'EOF'
-          docker pull seu_usuario_dockerhub/nome_imagem:latest
+          ssh -o StrictHostKeyChecking=no aluno@201.23.3.86 << 'EOF'
+          docker pull ${{ secrets.DOCKERHUB_USERNAME }}/nome_imagem:latest
           docker stop nome_do_container || true
           docker rm nome_do_container || true
-          docker run -d -p 8084:8084 --name nome_do_container seu_usuario_dockerhub/nome_imagem:latest
+          docker run -d -p 8084:8084 --name nome_do_container ${{ secrets.DOCKERHUB_USERNAME }}/nome_imagem:latest
           EOF
 
       - name: Limpeza de chaves SSH temporárias
-        run: rm ~/.ssh/deploy_key
+        run: rm -f ~/.ssh/deploy_key
